@@ -286,7 +286,7 @@ async function main() {
   await fs.mkdir(OUT, { recursive: true })
 
   const patches = buildPatches(dcPatch, dcPatchnotes)
-  await write(path.join(OUT, 'patches.json'), patches)
+  let changed = await write(path.join(OUT, 'patches.json'), patches)
 
   const built = []
   for (const lang of langs) {
@@ -305,9 +305,10 @@ async function main() {
     const abilities = buildAbilities(dcAbilities, dcHeroAbilities, ab)
     const items = buildItems(dcItems, ab)
 
-    await write(path.join(dir, 'heroes.json'), heroes)
-    await write(path.join(dir, 'abilities.json'), abilities)
-    await write(path.join(dir, 'items.json'), items)
+    // `||` a esquerda curto-circuitaria e pularia as escritas seguintes.
+    changed = (await write(path.join(dir, 'heroes.json'), heroes)) || changed
+    changed = (await write(path.join(dir, 'abilities.json'), abilities)) || changed
+    changed = (await write(path.join(dir, 'items.json'), items)) || changed
 
     const traduzidos = heroes.filter((h) => h.bio).length
     console.log(
@@ -317,21 +318,51 @@ async function main() {
     built.push(lang)
   }
 
-  await write(path.join(OUT, 'index.json'), {
-    generated: new Date().toISOString(),
+  // `generated` e a unica coisa aqui que muda a cada execucao. Se nada mais
+  // mudou, mantemos o carimbo antigo -- senao o job diario commitaria e
+  // republicaria o site todo dia so por causa deste timestamp.
+  const indexFile = path.join(OUT, 'index.json')
+  let generated = new Date().toISOString()
+  if (!changed) {
+    try {
+      generated = JSON.parse(await fs.readFile(indexFile, 'utf8')).generated ?? generated
+    } catch { /* primeira geracao */ }
+  }
+
+  await write(indexFile, {
+    generated,
     patch: patch.name,
     patchDate: patch.date,
     langs: built,
     counts: { patches: patches.length },
   })
 
-  console.log(`\nPronto. Patch ${patch.name}. Arquivos em public/data/\n`)
+  console.log(
+    `\nPronto. Patch ${patch.name}. ` +
+    (changed ? 'Dados atualizados' : 'Nada mudou desde a ultima geracao') +
+    '.\n'
+  )
 }
 
+// Escreve so quando o conteudo mudou de verdade, e avisa quem chamou.
+// Isso e o que torna o pipeline idempotente: rodar duas vezes seguidas sem
+// patch novo nao deve sujar o repositorio.
 async function write(file, data) {
-  await fs.writeFile(file, JSON.stringify(data))
-  const kb = ((await fs.stat(file)).size / 1024).toFixed(0)
+  const next = JSON.stringify(data)
+  let prev = null
+  try {
+    prev = await fs.readFile(file, 'utf8')
+  } catch { /* primeira vez */ }
+
+  // byteLength, nao length: acento em UTF-8 ocupa 2 bytes e 1 caractere.
+  const kb = (Buffer.byteLength(next, 'utf8') / 1024).toFixed(0)
+  if (prev === next) {
+    console.log(`  =  ${path.relative(ROOT, file)} (${kb} KB, sem mudanca)`)
+    return false
+  }
+  await fs.writeFile(file, next)
   console.log(`  -> ${path.relative(ROOT, file)} (${kb} KB)`)
+  return true
 }
 
 main().catch((e) => {
