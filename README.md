@@ -79,8 +79,9 @@ estourar no console. Os prints ficam em `.smoke/`.
 gh repo create Dotaquiz --public --source=. --push
 ```
 
-Depois, em *Settings → Pages*, deixe **Source: GitHub Actions**. Pronto — o
-primeiro push já publica.
+Não precisa configurar nada no *Settings → Pages*: o workflow usa
+`configure-pages` com `enablement: true`, que liga o Pages na primeira
+execução. O primeiro push já publica.
 
 ### Como a atualização automática funciona
 
