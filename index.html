@@ -6,6 +6,20 @@
     <title>Dotaquiz</title>
     <meta name="description" content="Quiz e jogos sobre Dota 2: herois, itens, habilidades, lore e patches. Dados oficiais, sempre atualizados." />
     <meta name="theme-color" content="#07080a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- VITE_SITE_URL entra no build (veja .env e o workflow). Os scrapers de
+         link exigem URL absoluta na og:image; caminho relativo eles ignoram. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Dotaquiz" />
+    <meta property="og:title" content="Dotaquiz — jogos para quem vive o mundo de Dota" />
+    <meta property="og:description" content="Dotle, quiz, lore e ícones de Dota 2. Dados oficiais, sempre no patch atual." />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <link rel="preconnect" href="https://cdn.cloudflare.steamstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

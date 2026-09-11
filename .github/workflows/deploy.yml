@@ -1,16 +1,30 @@
-name: Deploy
+name: Build e deploy
+
+# Um workflow só, de propósito.
+#
+# A tentação é separar em dois ("atualiza dados" commita, "deploy" reage ao
+# commit), mas push feito com o GITHUB_TOKEN não dispara outro workflow --
+# é a proteção do GitHub contra recursão. O deploy simplesmente nunca rodaria,
+# sem erro nenhum: o site ficaria parado num patch antigo e ninguém veria.
+# Então a atualização dos dados e a publicação acontecem na mesma execução.
 
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '17 6 * * *' # todo dia, 06:17 UTC
   workflow_dispatch:
+    inputs:
+      refresh_data:
+        description: 'Buscar os dados nas fontes oficiais antes de publicar'
+        type: boolean
+        default: true
 
 permissions:
-  contents: read
+  contents: write # pro commit dos dados novos
   pages: write
   id-token: write
 
-# Uma publicação por vez; se chegar push novo no meio, o antigo espera.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -28,11 +42,33 @@ jobs:
 
       - run: npm ci
 
+      # Só no agendamento e no disparo manual. Num push comum, usa o que está
+      # commitado -- senão todo push viraria uma ida às fontes.
+      - name: Atualizar dados nas fontes oficiais
+        if: github.event_name == 'schedule' || inputs.refresh_data
+        run: node scripts/build-data.mjs --fresh
+
+      - name: Commitar se veio patch novo
+        if: github.event_name == 'schedule' || inputs.refresh_data
+        run: |
+          git add public/data
+          if git diff --cached --quiet; then
+            echo "Nada novo: os dados já estão no patch atual."
+            exit 0
+          fi
+          patch=$(node -p "require('./public/data/index.json').patch")
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "dados: atualiza para o patch $patch"
+          git push
+          echo "Dados atualizados para o patch $patch."
+
       - name: Build
         # O site mora em usuario.github.io/<repo>/, então o Vite precisa saber
-        # o prefixo. Num domínio próprio (CNAME), troque por BASE_PATH=/.
+        # o prefixo. Com domínio próprio (public/CNAME), troque por BASE_PATH=/
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: npm run build
 
       - uses: actions/configure-pages@v5

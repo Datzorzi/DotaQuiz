@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "data": "node scripts/build-data.mjs",
     "data:all": "node scripts/build-data.mjs --all",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "og": "node scripts/make-og.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -27,5 +28,8 @@
     "vite": "^6.0.0"
   },
   "description": "Jogos sobre Dota 2 com dados oficiais, sempre no patch atual.",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
 }

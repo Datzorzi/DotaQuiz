@@ -69,7 +69,17 @@ const run = async () => {
   await go('/lore', 'blockquote')
   const quote = (await page.locator('blockquote').first().textContent()) ?? ''
   step('lore mostrou trecho', quote.length > 60, `${quote.length} chars`)
-  step('lore mascarou a resposta', quote.includes('█'), 'procurando blocos censurados')
+
+  // A regra que importa: o trecho nunca pode conter a resposta. Nem todo
+  // trecho cita o herói, entao procurar o bloco censurado (█) daria falso
+  // negativo -- o certo e responder, ver qual era, e conferir que aquele nome
+  // nao estava no texto.
+  await page.locator('.grid button').first().click()
+  await page.waitForTimeout(500)
+  const revealed = (await page.locator('.anim-pop .font-display').last().textContent()) ?? ''
+  const name = revealed.split('—')[0].trim()
+  const leaked = name.length > 2 && quote.toLowerCase().includes(name.toLowerCase())
+  step('lore nao entregou a resposta', !leaked, leaked ? `"${name}" aparecia no trecho` : `era ${name}`)
   await shot('4-lore')
 
   // Icones
