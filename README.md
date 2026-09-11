@@ -79,9 +79,18 @@ estourar no console. Os prints ficam em `.smoke/`.
 gh repo create Dotaquiz --public --source=. --push
 ```
 
-Não precisa configurar nada no *Settings → Pages*: o workflow usa
-`configure-pages` com `enablement: true`, que liga o Pages na primeira
-execução. O primeiro push já publica.
+O workflow usa `configure-pages` com `enablement: true`, que **liga** o Pages
+sozinho na primeira execução — sem isso a action falha com "Get Pages site
+failed" em repositório novo.
+
+Mas ligar não é o bastante: em repositório novo o GitHub cria o site apontando
+para o branch, e aí o Pages serve o código-fonte em vez do build (dá pra
+reconhecer na hora — o `index.html` no ar tem `src="/src/main.tsx"`). Uma vez,
+na mão:
+
+> *Settings → Pages → Source:* **GitHub Actions**
+
+Depois disso todo deploy vai sozinho.
 
 ### Como a atualização automática funciona
 
