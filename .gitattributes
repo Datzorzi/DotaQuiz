@@ -1,0 +1,3 @@
+# O runner do GitHub Actions e Linux: scripts e workflows precisam de LF.
+* text=auto eol=lf
+*.png binary
