@@ -49,6 +49,19 @@ node scripts/build-data.mjs --fresh       # ignora o cache em .cache/
 Para adicionar um idioma ao site, gere os dados dele e acrescente o dicionário
 de interface em `src/i18n/strings.ts`.
 
+O pipeline é idempotente: ele compara o conteúdo antes de gravar e só mexe nos
+arquivos que mudaram de verdade. Rodar duas vezes seguidas sem patch novo não
+suja o repositório — é isso que faz o job diário ficar quieto quando não há
+novidade.
+
+### Card de compartilhamento
+
+```bash
+npm run og        # regenera public/og.png a partir dos retratos do jogo
+```
+
+Só precisa rodar se o visual do card mudar; a imagem fica commitada.
+
 ### Conferindo no navegador
 
 ```bash
@@ -62,16 +75,48 @@ estourar no console. Os prints ficam em `.smoke/`.
 
 ## Publicando
 
-Dois workflows cuidam disso:
+```bash
+gh repo create Dotaquiz --public --source=. --push
+```
 
-- **`deploy.yml`** — a cada push na `main`, compila e publica no GitHub Pages.
-- **`update-data.yml`** — todo dia roda o pipeline contra as fontes; se veio
-  patch novo, commita os dados, e esse commit dispara o deploy.
+Depois, em *Settings → Pages*, deixe **Source: GitHub Actions**. Pronto — o
+primeiro push já publica.
 
-No repositório, em *Settings → Pages*, deixe **Source: GitHub Actions**.
+### Como a atualização automática funciona
 
-Com domínio próprio, coloque o domínio em *Settings → Pages*, crie o arquivo
-`public/CNAME` com ele dentro e troque `BASE_PATH` para `/` no `deploy.yml`.
+Um workflow só (`.github/workflows/deploy.yml`), com três gatilhos:
+
+| Gatilho | O que faz |
+|---|---|
+| push na `main` | compila e publica com os dados que estão commitados |
+| agendamento diário | busca nas fontes → commita se veio patch novo → compila e publica |
+| execução manual | igual ao agendado; dá pra desligar a busca de dados na hora de disparar |
+
+**Por que um workflow só e não dois.** O caminho óbvio seria um job que commita
+os dados e um `deploy` reagindo a esse commit. Não funciona: push feito com o
+`GITHUB_TOKEN` não dispara outro workflow — é a proteção do GitHub contra
+recursão. O deploy nunca rodaria, e sem erro nenhum aparecendo: o site ficaria
+parado num patch antigo indefinidamente. Por isso atualizar e publicar
+acontecem na mesma execução.
+
+**Atenção ao agendamento.** O GitHub desativa workflows agendados depois de 60
+dias sem nenhuma atividade no repositório. Se o projeto ficar parado meses, é
+só reativar em *Actions* ou dar um push.
+
+### Domínio próprio
+
+Coloque o domínio em *Settings → Pages*, crie `public/CNAME` com ele dentro e,
+no `deploy.yml`, troque `BASE_PATH` para `/` e `VITE_SITE_URL` para o domínio.
+
+### Testando o build de produção localmente
+
+```bash
+BASE_PATH=/Dotaquiz/ npm run build
+```
+
+No **Git Bash do Windows** o MSYS converte `/Dotaquiz/` em caminho do Windows e
+o build sai com URLs erradas. Use `MSYS_NO_PATHCONV=1` na frente. No PowerShell,
+no cmd e no runner do Linux não acontece.
 
 ## Estrutura
 
@@ -80,6 +125,7 @@ scripts/
   build-data.mjs     pipeline: fontes oficiais -> public/data/
   lib/kv.mjs         parser do formato KeyValues da Valve
   smoke.mjs          teste de navegador
+  make-og.mjs        gera o card de compartilhamento
 src/
   data/store.tsx     carrega os dados e controla o idioma
   i18n/strings.ts    textos da interface (pt-BR, en)
